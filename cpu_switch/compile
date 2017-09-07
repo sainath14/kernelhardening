@@ -1,0 +1,9 @@
+make -C /lib/modules/4.10.0-rc8+/build M=/home/secondstorage/kernel-hardening/cpu_switch
+make[1]: Entering directory '/home/secondstorage/linux-stable'
+  CC [M]  /home/secondstorage/kernel-hardening/cpu_switch/cpu_switch.o
+  LD [M]  /home/secondstorage/kernel-hardening/cpu_switch/vmx-switch.o
+  Building modules, stage 2.
+  MODPOST 1 modules
+  CC      /home/secondstorage/kernel-hardening/cpu_switch/vmx-switch.mod.o
+  LD [M]  /home/secondstorage/kernel-hardening/cpu_switch/vmx-switch.ko
+make[1]: Leaving directory '/home/secondstorage/linux-stable'
