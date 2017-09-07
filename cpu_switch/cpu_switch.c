@@ -245,7 +245,6 @@ static struct vmcs *alloc_vmcs_cpu(int cpu)
 	vmcs = page_address(pages);
 	memset(vmcs, 0, vmcs_config.size);
 	vmcs->revision_id = vmcs_config.revision_id; /* vmcs revision id */
-	printk (KERN_ERR "physical %lx virtual %lx\n revision_id %x", __pa(vmcs), (unsigned long)vmcs, vmcs->revision_id);
 	return vmcs;
 }
 
@@ -299,7 +298,6 @@ void vmx_switch_and_exit_handler (void)
 	u32 vmexit_reason;	
 	u64 gpa;
 
-	printk ("I am in exit handler %d\n", smp_processor_id());
 	reg_area = per_cpu(reg_scratch, smp_processor_id());
 	vcpu_ptr = this_cpu_ptr(&vcpu);
 	reg_area[VCPU_REGS_RIP] = vmcs_readl(GUEST_RIP);
@@ -314,7 +312,7 @@ void vmx_switch_and_exit_handler (void)
 		break;
 		case EXIT_REASON_EPT_MISCONFIG:
 			gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
-			printk (KERN_ERR "guest physical address 0x%llx\n", gpa);
+			printk (KERN_INFO "guest physical address 0x%llx\n resulted in EPT_MISCONFIG", gpa);
 			dump_entries(gpa);
 		break;	
 	}
@@ -361,7 +359,6 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 #endif
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_EXIT_CTLS,
 				&_vmexit_control) < 0) {
-		printk (KERN_ERR "vmexit control failed\n");
 		return -EIO;
 	}
 
@@ -369,7 +366,6 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	opt = 0;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PINBASED_CTLS,
 				&_pin_based_exec_control) < 0) {
-		printk (KERN_ERR "pin based control failed\n");
 		return -EIO;
 	}
 
@@ -378,7 +374,6 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	opt = VM_ENTRY_LOAD_IA32_EFER;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_ENTRY_CTLS,
 				&_vmentry_control) < 0) {
-		printk (KERN_ERR "vmentry control failed\n");
 		return -EIO;
 	}
 
@@ -403,7 +398,6 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	vmcs_conf->basic_cap = vmx_msr_high & ~0x1fff;
 	vmcs_conf->revision_id = vmx_msr_low;
 
-	printk (KERN_ERR "VMCS revision read from msr %x\n", vmcs_conf->revision_id);
 	vmcs_conf->pin_based_exec_ctrl = _pin_based_exec_control;
 	vmcs_conf->cpu_based_exec_ctrl = _cpu_based_exec_control;
 	vmcs_conf->cpu_based_2nd_exec_ctrl = _cpu_based_2nd_exec_control;
@@ -653,22 +647,18 @@ static void load_execution_control(void)
       value = 0x16;
       value = value | low;
       value = value & high;
-      printk(KERN_ERR "PIN based controls into VMCS %x vs. vmcs_config %x\n", value, vmcs_config.pin_based_exec_ctrl);
       vmcs_write32(PIN_BASED_VM_EXEC_CONTROL, vmcs_config.pin_based_exec_ctrl);
 
       rdmsr(MSR_IA32_VMX_PROCBASED_CTLS, low, high);
       value = 0x94006172;
       value = value | low;
       value = value & high;
-      printk(KERN_ERR "PROC based controls into VMCS %x vs. vmcs_config %x\n", value, vmcs_config.cpu_based_exec_ctrl);
       vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, vmcs_config.cpu_based_exec_ctrl); //enable seconday controls
 
       rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2, low, high);
       value = 0x0;
       value = value | low;
       value = value & high;
-      printk(KERN_ERR "PROC based controls2 into VMCS %x vs. vmcs_config %x\n", value, vmcs_config.cpu_based_2nd_exec_ctrl);
-//      vmcs_write32(SECONDARY_VM_EXEC_CONTROL, vmcs_config.cpu_based_2nd_exec_ctrl); //enable seconday controls
       vmcs_write32(SECONDARY_VM_EXEC_CONTROL, vmcs_config.cpu_based_2nd_exec_ctrl); //enable seconday controls
 
 
@@ -676,12 +666,10 @@ static void load_execution_control(void)
 
       vmx_io_bitmap_a_switch = (unsigned long *)__get_free_page(GFP_KERNEL);
       memset(vmx_io_bitmap_a_switch, 0, PAGE_SIZE);
-      printk(KERN_ERR "io bitmap a address 0x%lx\n", (unsigned long) vmx_io_bitmap_a_switch);
       vmcs_write64(IO_BITMAP_A, __pa(vmx_io_bitmap_a_switch));
 
       vmx_io_bitmap_b_switch = (unsigned long *)__get_free_page(GFP_KERNEL);
       memset(vmx_io_bitmap_b_switch, 0, PAGE_SIZE);
-      printk(KERN_ERR "io bitmap b address  0x%lx\n", (unsigned long) vmx_io_bitmap_b_switch);
       vmcs_write64(IO_BITMAP_B, __pa(vmx_io_bitmap_b_switch));
 
       vmx_msr_bitmap_switch = (unsigned long *)__get_free_page(GFP_KERNEL);
@@ -693,7 +681,6 @@ static void load_execution_control(void)
          memset(vmx_eptp_pml4, 0, PAGE_SIZE);
       }
       eptp = construct_eptp(__pa(vmx_eptp_pml4));
-      printk(KERN_ERR "eptp in vmcs area  0x%lx\n", (unsigned long) eptp);
       
       vmcs_write64(EPT_POINTER, eptp);
 
@@ -716,7 +703,6 @@ void load_vmentry_control(void)
       value = value | low;
       value = value & high;
 
-      printk(KERN_ERR "ENTRY controls into VMCS %x vs. vmcs_config %x\n", value, vmcs_config.vmentry_ctrl);
       vmcs_write32(VM_ENTRY_CONTROLS, vmcs_config.vmentry_ctrl);
       vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, 0);
       vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);
@@ -732,7 +718,6 @@ void load_vmexit_control(void)
       value = value | low;
       value = value & high;
 
-      printk(KERN_ERR "EXIT controls into VMCS %x vs. vmcs_config %x\n", value, vmcs_config.vmexit_ctrl);
       vmcs_write32(VM_EXIT_CONTROLS, vmcs_config.vmexit_ctrl);
       vmcs_write32(VM_EXIT_MSR_STORE_COUNT, 0);
       vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, 0);
@@ -756,15 +741,9 @@ static int switch_to_nonroot(void *data)
 	struct vcpu_vmx *vcpu_ptr;
 	int cpu;
 	u64 phys_addr, host_rsp, host_rflags, guest_rip;
-	bool test = false;
 
 	cpu = get_cpu();
 
-	if (test) {
-		printk(KERN_ERR "I am on cpu %d\n", cpu);
-		wait_event_interruptible(root_thread_queue, true);
-		return 0;
-	}
 	vcpu_ptr = this_cpu_ptr(&vcpu);
 	native_store_gdt(this_cpu_ptr(&host_gdt));
 	vcpu_ptr->vcpu_stack = (u64) kmalloc(16384, GFP_KERNEL);
@@ -778,7 +757,6 @@ static int switch_to_nonroot(void *data)
 
 	vcpu_ptr->vmxarea = alloc_vmcs_cpu(cpu);
 	phys_addr = __pa(vcpu_ptr->vmxarea);
-	printk (KERN_ERR "physical %llx virtual %lx\n", phys_addr, (unsigned long)vcpu_ptr->vmxarea);
 	cpu_vmxon(phys_addr);
 
 	vcpu_ptr->pcpu_vmcs = alloc_vmcs_cpu(cpu);
@@ -817,7 +795,6 @@ static int switch_to_nonroot(void *data)
 
 	asm volatile (__ex(ASM_VMX_VMLAUNCH) "\n\t");
 	asm("vmentry_point:");
-	asm("cpuid");
 	bitmap_set(switch_done, cpu, 1);
 	put_cpu();
 
@@ -829,20 +806,8 @@ static int switch_to_nonroot(void *data)
 
 int vmx_switch_to_nonroot (void)
 {
-	#ifdef DEBUG
-	volatile bool test = false;
-	#endif
-
 	int cpu;
 	struct task_struct* thread_ptr;
-
-	#ifdef DEBUG
-	printk (KERN_ERR "address of switch_to_nonroot %llx\n", (u64) switch_to_nonroot);
-
-	while (test) {
-
-	}
-	#endif
 
 	bitmap_zero(switch_done, NR_CPUS);
 	for_each_online_cpu(cpu) {
