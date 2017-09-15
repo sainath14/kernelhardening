@@ -14,3 +14,6 @@ Steps to tryout this module
 4. insmod vmx_switch.ko
 
 Upon loading this module, all the processors on the system are now in non-root mode.
+
+Known issues:
+Upon loading the module and after the processors are in non-root mode, system reboot leads to hang. So please avoid reboot!!!
