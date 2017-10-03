@@ -89,17 +89,19 @@ int build_pte_guest_phys_addr(unsigned long start_pfn, long nr_pages)
 {
 	unsigned long *pte;
 	unsigned long level;
-	unsigned long pages;
+	unsigned long pages, total_pages = 0;
 
-	printk("building pfn for start_pfn %lx for pages %ld\n", start_pfn, nr_pages);
+	printk(KERN_ERR "ptable: building pfn for start_pfn %lx for pages %ld\n", start_pfn, nr_pages);
         while (nr_pages > 0) {
 		u64 pteval = 0;
 
                 level = highest_level_possible_for_addr(start_pfn, nr_pages);
 //		printk("level decided - %d for start_pfn %lx\n", level, start_pfn);
                 pte = pte_for_address(start_pfn, &level);
-                if (!pte)
+                if (!pte) {
+			printk(KERN_ERR "ptable: insufficient memory\n");
                         return -ENOMEM;
+		}
 		pages = 1;
                 if (level > 1) {
                         pteval |= EPT_PTE_LARGE_PAGE;
@@ -107,11 +109,13 @@ int build_pte_guest_phys_addr(unsigned long start_pfn, long nr_pages)
                 }
 		//Todo: Add EPT memory type
 		*pte = pteval | (start_pfn << EPT_PAGE_SHIFT) | PTE_MEM_TYPE_WB | PTE_READ | PTE_WRITE | PTE_EXECUTE;
-		printk("pte stored at %lx for Pages %lu\n", (unsigned long) pte, pages);
+//		printk("pte stored at %lx for Pages %lu\n", (unsigned long) pte, pages);
 		nr_pages -= pages;
-		printk("nr_pages %lu pages %lu\n", nr_pages, pages);
+//		printk("nr_pages %lu pages %lu\n", nr_pages, pages);
                 start_pfn += pages;
+		total_pages += pages;
         }
+	printk(KERN_ERR "ptable: ptable built for total_pages %lu\n", total_pages);
         return 0;
 }
 
@@ -142,7 +146,7 @@ void setup_ept_tables(void)
                 if (end)
                         end = ((entry->end >> 12) << 12) + 0x1000;
 
-                printk("start - %lx, end - %lx\n",start, end);
+                printk(KERN_ERR "start - %lx, end - %lx\n",start, end);
 
                 size = end - start;
                 nr_pages = size >> 12;

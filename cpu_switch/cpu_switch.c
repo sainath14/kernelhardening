@@ -299,7 +299,7 @@ void vmx_switch_and_exit_handler (void)
 	u32 vmexit_reason;	
 	u64 gpa;
 
-	printk ("I am in exit handler %d\n", smp_processor_id());
+	printk_once ("I am in exit handler %d\n", smp_processor_id());
 	reg_area = per_cpu(reg_scratch, smp_processor_id());
 	vcpu_ptr = this_cpu_ptr(&vcpu);
 	reg_area[VCPU_REGS_RIP] = vmcs_readl(GUEST_RIP);
@@ -314,7 +314,7 @@ void vmx_switch_and_exit_handler (void)
 		break;
 		case EXIT_REASON_EPT_MISCONFIG:
 			gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
-			printk (KERN_ERR "guest physical address 0x%llx\n", gpa);
+			printk_once (KERN_ERR "guest physical address 0x%llx\n", gpa);
 			dump_entries(gpa);
 		break;	
 	}
