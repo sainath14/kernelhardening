@@ -815,7 +815,7 @@ static int switch_to_nonroot(void *data)
 		:"=a"(guest_rip));
 	vmcs_writel(GUEST_RIP, guest_rip);
 
-	asm volatile (__ex(ASM_VMX_VMLAUNCH) "\n\t");
+//	asm volatile (__ex(ASM_VMX_VMLAUNCH) "\n\t");
 	asm("vmentry_point:");
 	asm("cpuid");
 	bitmap_set(switch_done, cpu, 1);
