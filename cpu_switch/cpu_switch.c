@@ -290,6 +290,34 @@ void handle_cpuid (struct vcpu_vmx *vcpu)
 	skip_emulated_instruction(vcpu);
 }
 
+/*
+	Potentially in a different module?
+*/
+
+#define CPU_MONITOR_HYPERCALL 40
+void handle_cpu_monitor (u64 hypercall_id, u64 params)
+{
+	printk (KERN_ERR "VMCALL called for setting crx monitoring\n");	
+}
+
+void handle_vmcall(void)
+{
+	unsigned long *reg_area;
+	u64 hypercall_id;
+	u64 params;
+
+	reg_area = per_cpu(reg_scratch, smp_processor_id());
+	hypercall_id = reg_area[VCPU_REGS_RAX];
+	params = reg_area[VCPU_REGS_RBX];
+
+	switch (hypercall_id) {
+		case CPU_MONITOR_HYPERCALL:
+			handle_cpu_monitor(hypercall_id, params);
+		break;
+		default:
+		break;
+	}	
+}
 
 void vmx_switch_and_exit_handler (void)
 {
@@ -310,13 +338,17 @@ void vmx_switch_and_exit_handler (void)
 		case EXIT_REASON_CPUID:
 			handle_cpuid(vcpu_ptr);
 		break;
+
 		case EXIT_REASON_EPT_MISCONFIG:
 			gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 			printk (KERN_INFO "guest physical address 0x%llx\n resulted in EPT_MISCONFIG", gpa);
 			dump_entries(gpa);
 		break;	
-	}
 	
+		case EXIT_REASON_VMCALL:
+			handle_vmcall();
+		break;
+	}
 	if (vcpu_ptr->instruction_skipped == true) {
 		vmcs_writel(GUEST_RIP, reg_area[VCPU_REGS_RIP]);
 	}
