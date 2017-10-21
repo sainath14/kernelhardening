@@ -317,6 +317,7 @@ void handle_vmcall(void)
 		default:
 		break;
 	}	
+	skip_emulated_instruction(vcpu);
 }
 
 void vmx_switch_and_exit_handler (void)
