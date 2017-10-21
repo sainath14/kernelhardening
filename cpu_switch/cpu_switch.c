@@ -297,10 +297,11 @@ void handle_cpuid (struct vcpu_vmx *vcpu)
 #define CPU_MONITOR_HYPERCALL 40
 void handle_cpu_monitor (u64 hypercall_id, u64 params)
 {
+	printk (KERN_ERR "monitor_cpu_events called on %x\n", smp_processor_id());
 	printk (KERN_ERR "VMCALL called for setting crx monitoring\n");	
 }
 
-void handle_vmcall(void)
+void handle_vmcall(struct vcpu_vmx *vcpu)
 {
 	unsigned long *reg_area;
 	u64 hypercall_id;
@@ -347,7 +348,7 @@ void vmx_switch_and_exit_handler (void)
 		break;	
 	
 		case EXIT_REASON_VMCALL:
-			handle_vmcall();
+			handle_vmcall(vcpu_ptr);
 		break;
 	}
 	if (vcpu_ptr->instruction_skipped == true) {

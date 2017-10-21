@@ -7,6 +7,7 @@ static void monitor_cpu_events_ex(void *info)
 {
 	cpu_event_params_t *params = info;
 
+	printk (KERN_ERR "monitor_cpu_events called on %x\n", smp_processor_id());
 	asm_make_vmcall(CPU_MONITOR_HYPERCALL, (void *)params);	
 }
 
@@ -21,5 +22,6 @@ void monitor_cpu_events(unsigned long mask, bool enable, cpu_reg_t reg)
 	params->enable = enable;
 	params->mask = mask;
 
+	printk (KERN_ERR "monitor_cpu_events called on %x\n", smp_processor_id());
 	smp_call_function_many(cpu_online_mask, monitor_cpu_events_ex, (void *)params, true);
 }
