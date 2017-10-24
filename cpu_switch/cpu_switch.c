@@ -905,6 +905,7 @@ void vmx_switch_update_cr0_mask (bool enable, unsigned long mask)
 	unsigned long cr0_mask = vmcs_readl(CR0_GUEST_HOST_MASK);
 	unsigned long non_root_cr0 = vmcs_readl(GUEST_CR0);
 
+	printk (KERN_ERR "vmx_switch_update_cr0_mask called on %x\n", smp_processor_id());
 	bool root_owned = false;
 
 	if ((cr0_mask & mask) == mask) {
@@ -914,6 +915,7 @@ void vmx_switch_update_cr0_mask (bool enable, unsigned long mask)
 
 	if (enable) {
 		if (!root_owned) {
+			printk (KERN_ERR "update_cr0_mask done successfully\n");
 			cr0_mask = cr0_mask | mask;
 			vmcs_writel(CR0_GUEST_HOST_MASK, cr0_mask);
 			vmcs_writel(CR0_READ_SHADOW, non_root_cr0);
