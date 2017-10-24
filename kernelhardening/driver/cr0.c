@@ -15,6 +15,7 @@
 #include <linux/module.h>
 
 #include "common.h"
+#include "vmx_common.h"
 
 static name_value_map cr0_bits[] = {
 	{ "PE", PE},

@@ -211,22 +211,4 @@ typedef enum _RESOURCE_ID {
         RESOURCE_ID_UNKNOWN
 } RESOURCE_ID;
 
-typedef enum {
-	CPU_REG_CR0 = 0,
-        CPU_REG_CR4,
-	TMSL_CPU_REG_UNKNOWN
-}cpu_reg_t;
-
-typedef enum {
-	CPU_MONITOR_HYPERCALL = 40,	
-} call_id_t;
-
-typedef struct {
-        unsigned long size;
-        cpu_reg_t cpu_reg;
-        bool enable;
-        unsigned long mask;
-} cpu_event_params_t;
-
-void monitor_cpu_events(unsigned long mask, bool enable, cpu_reg_t reg);
 #endif /* _COMMON_H */

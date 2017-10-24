@@ -15,6 +15,8 @@
 #include <asm/vmx.h>
 #include <asm/msr-index.h>
 
+#include "vmx_common.h"
+
 #define __ex(x) x
 
 struct vmcs {
@@ -64,6 +66,7 @@ module_param_named(switch_vmx, switch_on_load, bool, 0644);
 void vmx_switch_and_exit_handle_vmexit(void);
 void setup_ept_tables(void);
 void dump_entries (u64 gpa);
+void handle_kernel_hardening_hypercall (u64 params);
 
 static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
@@ -297,8 +300,8 @@ void handle_cpuid (struct vcpu_vmx *vcpu)
 #define CPU_MONITOR_HYPERCALL 40
 void handle_cpu_monitor (u64 hypercall_id, u64 params)
 {
-	printk (KERN_ERR "monitor_cpu_events called on %x\n", smp_processor_id());
-	printk (KERN_ERR "VMCALL called for setting crx monitoring\n");	
+	printk (KERN_ERR "vmx-root: monitor_cpu_events called on %x\n", smp_processor_id());
+	printk (KERN_ERR "vmx-root: VMCALL called for setting crx monitoring\n");	
 }
 
 void handle_vmcall(struct vcpu_vmx *vcpu)
@@ -312,8 +315,8 @@ void handle_vmcall(struct vcpu_vmx *vcpu)
 	params = reg_area[VCPU_REGS_RBX];
 
 	switch (hypercall_id) {
-		case CPU_MONITOR_HYPERCALL:
-			handle_cpu_monitor(hypercall_id, params);
+		case KERNEL_HARDENING_HYPERCALL:
+			handle_kernel_hardening_hypercall(params);
 		break;
 		default:
 		break;
@@ -896,6 +899,32 @@ static void nonroot_switch_exit(void)
 	printk (KERN_ERR "module vmx-switch unloaded\n");
 }
 
+
+void vmx_switch_update_cr0_mask (bool enable, unsigned long mask)
+{
+	unsigned long cr0_mask = vmcs_readl(CR0_GUEST_HOST_MASK);
+	unsigned long non_root_cr0 = vmcs_readl(GUEST_CR0);
+
+	bool root_owned = false;
+
+	if ((cr0_mask & mask) == mask) {
+		printk (KERN_ERR "mask %lx is already owned by vmx root", mask);
+		root_owned = true;
+	}
+
+	if (enable) {
+		if (!root_owned) {
+			cr0_mask = cr0_mask | mask;
+			vmcs_writel(CR0_GUEST_HOST_MASK, cr0_mask);
+			vmcs_writel(CR0_READ_SHADOW, non_root_cr0);
+		}
+	} else {
+		if (root_owned) {
+			cr0_mask = cr0_mask & ~mask;
+			vmcs_writel(CR0_GUEST_HOST_MASK, cr0_mask);
+		}
+	}	
+}
 module_init(nonroot_switch_init);
 module_exit(nonroot_switch_exit);
 MODULE_LICENSE("GPL");
