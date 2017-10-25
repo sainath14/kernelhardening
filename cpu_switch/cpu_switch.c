@@ -65,8 +65,9 @@ static bool __read_mostly switch_on_load = 1;
 module_param_named(switch_vmx, switch_on_load, bool, 0644);
 void vmx_switch_and_exit_handle_vmexit(void);
 void setup_ept_tables(void);
-void dump_entries (u64 gpa);
-void handle_kernel_hardening_hypercall (u64 params);
+void dump_entries(u64 gpa);
+void handle_kernel_hardening_hypercall(u64 params);
+void handle_mov_to_cr0(void);
 
 static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
@@ -324,6 +325,40 @@ void handle_vmcall(struct vcpu_vmx *vcpu)
 	skip_emulated_instruction(vcpu);
 }
 
+#define MOV_TO_CR 0
+#define CR0 0
+#define CR4 4
+
+void handle_cr(struct vcpu_vmx *vcpu)
+{
+	unsigned long exit_qual, val;
+	int cr;
+	int type;
+	int reg;
+
+	exit_qual = vmcs_readl(EXIT_QUALIFICATION);
+	cr = exit_qual & 15;
+	type = (exit_qual >> 4)	& 3;
+	reg = (exit_qual >> 8) & 15;	
+	
+	switch (type) {
+		case MOV_TO_CR:
+			switch (cr) {
+				case CR0:
+					val = vcpu->regs[reg];
+					printk (KERN_ERR "EXIT on cr0 access for value %lx", val);
+					handle_mov_to_cr0();
+					return;
+				break;
+				default:
+				break;
+			}
+		break;
+		default:
+		break;
+	}
+}
+
 void vmx_switch_and_exit_handler (void)
 {
 	unsigned long *reg_area;
@@ -352,6 +387,10 @@ void vmx_switch_and_exit_handler (void)
 	
 		case EXIT_REASON_VMCALL:
 			handle_vmcall(vcpu_ptr);
+		break;
+
+		case EXIT_REASON_CR_ACCESS:
+			handle_cr(vcpu_ptr);
 		break;
 	}
 	if (vcpu_ptr->instruction_skipped == true) {
@@ -899,14 +938,21 @@ static void nonroot_switch_exit(void)
 	printk (KERN_ERR "module vmx-switch unloaded\n");
 }
 
+void vmx_switch_skip_instruction (void)
+{
+	struct vcpu_vmx *vcpu_ptr;	
+
+	vcpu_ptr = this_cpu_ptr(&vcpu);
+	skip_emulated_instruction(vcpu_ptr);
+}
 
 void vmx_switch_update_cr0_mask (bool enable, unsigned long mask)
 {
 	unsigned long cr0_mask = vmcs_readl(CR0_GUEST_HOST_MASK);
 	unsigned long non_root_cr0 = vmcs_readl(GUEST_CR0);
+	bool root_owned = false;
 
 	printk (KERN_ERR "vmx_switch_update_cr0_mask called on %x\n", smp_processor_id());
-	bool root_owned = false;
 
 	if ((cr0_mask & mask) == mask) {
 		printk (KERN_ERR "mask %lx is already owned by vmx root", mask);

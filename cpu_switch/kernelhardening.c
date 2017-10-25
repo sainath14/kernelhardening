@@ -2,13 +2,20 @@
 #include "vmx_common.h"
 
 void vmx_switch_update_cr0_mask (bool enable, unsigned long mask);
+void vmx_switch_skip_instruction (void);
+
+void handle_mov_to_cr0 (void)
+{
+	vmx_switch_skip_instruction();
+}
 
 void handle_cpu_monitor_req (cpu_event_params_t *params)
 {
-	unsigned long mask;
 	switch (params->cpu_reg) {
 		case CPU_REG_CR0:
 			vmx_switch_update_cr0_mask(params->enable, params->mask);
+		break;
+		default:
 		break;
 	}
 }

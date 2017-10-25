@@ -17,6 +17,6 @@
 #define	VCPU_REGS_R13  13
 #define	VCPU_REGS_R14  14
 #define	VCPU_REGS_R15  15
-#define	VCPU_REGS_RIP 8
-#define	NR_VCPU_REGS 9
+#define	VCPU_REGS_RIP 16
+#define	NR_VCPU_REGS 17
 #endif
