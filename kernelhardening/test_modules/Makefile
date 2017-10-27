@@ -2,13 +2,13 @@ KERNELDIR:=/lib/modules/$(shell uname -r)/build
 PWD=$(shell pwd)
 
 INCLUDES = -I. \
-	   -I/home/secondstorage/kernelhardening/kernelhardening/driver
+	   -I/home/secondstorage/kernelhardening/kernelhardening/common/include
 
 ccflags-y += $(INCLUDES)
 
-obj-m += vmx-switch.o
+obj-m += cr0-pg.o
 
-vmx-switch-y := cpu_switch.o  vmexit.o ptable.o kernelhardening.o
+cr0-pg-y := cr0_pg.o
 
 all:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD)

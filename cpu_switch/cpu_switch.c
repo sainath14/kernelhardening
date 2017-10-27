@@ -15,6 +15,8 @@
 #include <asm/vmx.h>
 #include <asm/msr-index.h>
 
+#include "vmx_common.h"
+
 #define __ex(x) x
 
 struct vmcs {
@@ -63,7 +65,9 @@ static bool __read_mostly switch_on_load = 1;
 module_param_named(switch_vmx, switch_on_load, bool, 0644);
 void vmx_switch_and_exit_handle_vmexit(void);
 void setup_ept_tables(void);
-void dump_entries (u64 gpa);
+void dump_entries(u64 gpa);
+void handle_kernel_hardening_hypercall(u64 params);
+void handle_mov_to_cr0(void);
 
 static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
@@ -290,6 +294,70 @@ void handle_cpuid (struct vcpu_vmx *vcpu)
 	skip_emulated_instruction(vcpu);
 }
 
+/*
+	Potentially in a different module?
+*/
+
+#define CPU_MONITOR_HYPERCALL 40
+void handle_cpu_monitor (u64 hypercall_id, u64 params)
+{
+	printk (KERN_ERR "vmx-root: monitor_cpu_events called on %x\n", smp_processor_id());
+	printk (KERN_ERR "vmx-root: VMCALL called for setting crx monitoring\n");	
+}
+
+void handle_vmcall(struct vcpu_vmx *vcpu)
+{
+	unsigned long *reg_area;
+	u64 hypercall_id;
+	u64 params;
+
+	reg_area = per_cpu(reg_scratch, smp_processor_id());
+	hypercall_id = reg_area[VCPU_REGS_RAX];
+	params = reg_area[VCPU_REGS_RBX];
+
+	switch (hypercall_id) {
+		case KERNEL_HARDENING_HYPERCALL:
+			handle_kernel_hardening_hypercall(params);
+		break;
+		default:
+		break;
+	}	
+	skip_emulated_instruction(vcpu);
+}
+
+#define MOV_TO_CR 0
+#define CR0 0
+#define CR4 4
+
+void handle_cr(struct vcpu_vmx *vcpu)
+{
+	unsigned long exit_qual, val;
+	int cr;
+	int type;
+	int reg;
+
+	exit_qual = vmcs_readl(EXIT_QUALIFICATION);
+	cr = exit_qual & 15;
+	type = (exit_qual >> 4)	& 3;
+	reg = (exit_qual >> 8) & 15;	
+	
+	switch (type) {
+		case MOV_TO_CR:
+			switch (cr) {
+				case CR0:
+					val = vcpu->regs[reg];
+					printk (KERN_ERR "EXIT on cr0 access for value %lx", val);
+					handle_mov_to_cr0();
+					return;
+				break;
+				default:
+				break;
+			}
+		break;
+		default:
+		break;
+	}
+}
 
 void vmx_switch_and_exit_handler (void)
 {
@@ -310,13 +378,21 @@ void vmx_switch_and_exit_handler (void)
 		case EXIT_REASON_CPUID:
 			handle_cpuid(vcpu_ptr);
 		break;
+
 		case EXIT_REASON_EPT_MISCONFIG:
 			gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 			printk (KERN_INFO "guest physical address 0x%llx\n resulted in EPT_MISCONFIG", gpa);
 			dump_entries(gpa);
 		break;	
-	}
 	
+		case EXIT_REASON_VMCALL:
+			handle_vmcall(vcpu_ptr);
+		break;
+
+		case EXIT_REASON_CR_ACCESS:
+			handle_cr(vcpu_ptr);
+		break;
+	}
 	if (vcpu_ptr->instruction_skipped == true) {
 		vmcs_writel(GUEST_RIP, reg_area[VCPU_REGS_RIP]);
 	}
@@ -862,6 +938,41 @@ static void nonroot_switch_exit(void)
 	printk (KERN_ERR "module vmx-switch unloaded\n");
 }
 
+void vmx_switch_skip_instruction (void)
+{
+	struct vcpu_vmx *vcpu_ptr;	
+
+	vcpu_ptr = this_cpu_ptr(&vcpu);
+	skip_emulated_instruction(vcpu_ptr);
+}
+
+void vmx_switch_update_cr0_mask (bool enable, unsigned long mask)
+{
+	unsigned long cr0_mask = vmcs_readl(CR0_GUEST_HOST_MASK);
+	unsigned long non_root_cr0 = vmcs_readl(GUEST_CR0);
+	bool root_owned = false;
+
+	printk (KERN_ERR "vmx_switch_update_cr0_mask called on %x\n", smp_processor_id());
+
+	if ((cr0_mask & mask) == mask) {
+		printk (KERN_ERR "mask %lx is already owned by vmx root", mask);
+		root_owned = true;
+	}
+
+	if (enable) {
+		if (!root_owned) {
+			printk (KERN_ERR "update_cr0_mask done successfully\n");
+			cr0_mask = cr0_mask | mask;
+			vmcs_writel(CR0_GUEST_HOST_MASK, cr0_mask);
+			vmcs_writel(CR0_READ_SHADOW, non_root_cr0);
+		}
+	} else {
+		if (root_owned) {
+			cr0_mask = cr0_mask & ~mask;
+			vmcs_writel(CR0_GUEST_HOST_MASK, cr0_mask);
+		}
+	}	
+}
 module_init(nonroot_switch_init);
 module_exit(nonroot_switch_exit);
 MODULE_LICENSE("GPL");
