@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/configfs.h>
 
+#include "policy_common.h"
 #include "common.h"
 
 extern struct configfs_subsystem *create_log_node(void);

@@ -15,23 +15,20 @@
 #include <asm/vmx.h>
 #include <asm/msr-index.h>
 
+#include "policy_common.h"
 
 static int __init cr0_pg_init(void)
 {
 	unsigned long val;
 
-/*	asm ("mov %ax, %%cr0\n\t");
-	asm volatile ("cpuid\n");
-	asm volatile ("mov %%cr0, %0\n"
-		      : "=r"(val));
-
-	printk (KERN_ERR "value read from cr0 %lx\n", val);
-	return 0;*/
 	val = read_cr0();
-	val &= 0x7fffffff;
+	printk (KERN_ERR "value read from cr0 %lx\n", val);
+	val = val & ~(1 << PG);
+	printk (KERN_ERR "value after logical and %lx\n", val);
 	write_cr0(val);
 	asm volatile ("cpuid\n");
 	val = read_cr0();
+	printk (KERN_ERR "value read from cr0 %lx\n", val);
 	return 0;
 }
 

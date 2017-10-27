@@ -1,4 +1,6 @@
 #include <linux/smp.h>
+
+#include "policy_common.h"
 #include "common.h"
 #include "vmx_common.h"
 
