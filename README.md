@@ -1,5 +1,8 @@
 # kernelhardening
 
+[![Join the chat at https://gitter.im/kernelhardening/Lobby](https://badges.gitter.im/trailofbits/algo.svg)](https://gitter.im/kernelhardening/Lobby)
+
+
 Hardware assisted virtualization features enforce security for memory and processor state. 
 These can be leveraged to protect the kernel integrity for KVM guests and can also be extended to native linux
 execution. For this linux has to run in non-root mode. We developed a linux module that helps switch all the 
