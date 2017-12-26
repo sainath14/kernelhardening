@@ -2,7 +2,7 @@ KERNELDIR:=/lib/modules/$(shell uname -r)/build
 PWD=$(shell pwd)
 
 INCLUDES = -I. \
-	   -I/home/secondstorage/kernelhardening/kernelhardening/driver
+	   -I$(src)/../kernelhardening/driver
 
 ccflags-y += $(INCLUDES)
 

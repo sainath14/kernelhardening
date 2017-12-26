@@ -23,7 +23,7 @@ static int __init cr0_pg_init(void)
 
 	val = read_cr0();
 	printk (KERN_ERR "value read from cr0 %lx\n", val);
-	val = val & ~(1 << PG);
+	val = val & ~(1 << 31);
 	printk (KERN_ERR "value after logical and %lx\n", val);
 	write_cr0(val);
 	asm volatile ("cpuid\n");
