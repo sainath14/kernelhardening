@@ -5,6 +5,7 @@ typedef enum {
 }cpu_reg_t;
 
 #define KERNEL_HARDENING_HYPERCALL 40
+#define TRY_MTF_EXIT 41
 
 typedef enum {
 	CPU_MONITOR_REQ = 1,

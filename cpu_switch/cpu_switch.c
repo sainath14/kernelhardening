@@ -68,6 +68,8 @@ void setup_ept_tables(void);
 void dump_entries(u64 gpa);
 void handle_kernel_hardening_hypercall(u64 params);
 void handle_mov_to_cr0(void);
+void set_vmcs_for_mtf(void);
+void remove_mtf_and_continue(void);
 
 static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
@@ -305,6 +307,22 @@ void handle_cpu_monitor (u64 hypercall_id, u64 params)
 	printk (KERN_ERR "vmx-root: VMCALL called for setting crx monitoring\n");	
 }
 
+void set_vmcs_for_mtf (void)
+{
+	u32 cpu_based_exec_control = 0;
+	cpu_based_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	cpu_based_exec_control |= CPU_BASED_MONITOR_TRAP_FLAG;
+	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_exec_control);
+}
+
+void remove_mtf_and_continue (void)
+{
+	u32 cpu_based_exec_control = 0;
+	cpu_based_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	cpu_based_exec_control &= ~CPU_BASED_MONITOR_TRAP_FLAG;
+	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_exec_control);
+}
+
 void handle_vmcall(struct vcpu_vmx *vcpu)
 {
 	unsigned long *reg_area;
@@ -318,6 +336,9 @@ void handle_vmcall(struct vcpu_vmx *vcpu)
 	switch (hypercall_id) {
 		case KERNEL_HARDENING_HYPERCALL:
 			handle_kernel_hardening_hypercall(params);
+		break;
+		case TRY_MTF_EXIT:
+			set_vmcs_for_mtf();
 		break;
 		default:
 		break;
@@ -391,6 +412,9 @@ void vmx_switch_and_exit_handler (void)
 
 		case EXIT_REASON_CR_ACCESS:
 			handle_cr(vcpu_ptr);
+		break;
+		case EXIT_REASON_MONITOR_TRAP_FLAG:
+			remove_mtf_and_continue();
 		break;
 	}
 	if (vcpu_ptr->instruction_skipped == true) {
@@ -495,7 +519,7 @@ static noinline void load_guest_state_area(void) {
 	u16 tr;
 
         vmcs_writel(GUEST_CR0, read_cr0() & ~X86_CR0_TS);
-        vmcs_writel(GUEST_CR3, read_cr3()); 
+        vmcs_writel(GUEST_CR3, __read_cr3()); 
         vmcs_writel(GUEST_CR4, cr4_read_shadow());
 
         base = 0;
